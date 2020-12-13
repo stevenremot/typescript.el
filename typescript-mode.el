@@ -1510,9 +1510,12 @@ LIMIT defaults to point."
   (ignore-errors
     (save-excursion
       (typescript--up-nearby-list)
-      (and (looking-at "(")
+      (and (or (looking-at "{") (looking-at "("))
            (progn (forward-symbol -1)
                   (or (looking-at "function")
+		      (looking-at "const")
+		      (looking-at "let")
+		      (looking-at "var")
                       (progn (forward-symbol -1)
                              (looking-at "function"))))))))
 
@@ -1845,6 +1848,17 @@ and searches for the next token to be highlighted."
       (concat "\\_<\\(const\\|var\\|let\\)\\_>\\|" typescript--basic-type-re)
       (list #'typescript--variable-decl-matcher nil nil nil))
 
+    ;; Variable declarations with destructuring
+    ,(list (concat "\\_<\\(const\\|var\\|let\\)\\_>\\s-+[{|[]")
+	   (list
+	    (concat "\\(" typescript--name-re "\\)\\(\\s-*).*\\)?")
+	    '(save-excursion
+	       (backward-char)
+	       (forward-sexp 1)
+	       (point))
+	    '(end-of-line)
+	    '(1 font-lock-variable-name-face)))
+
     ;; class instantiation
     ,(list
       (concat "\\_<new\\_>\\s-+\\(" typescript--dotted-name-re "\\)")
@@ -1858,7 +1872,7 @@ and searches for the next token to be highlighted."
     ;; formal parameters
     ,(list
       (concat
-       "\\_<function\\_>\\(\\s-+" typescript--name-re "\\)?\\s-*\\(<.*>\\)?\\s-*(\\s-*"
+       "\\_<function\\_>\\(\\s-+" typescript--name-re "\\)?\\s-*\\(<.*>\\)?\\s-*([ \\n]*\\({[ \\n]*\\)?"
        typescript--name-start-re)
       (list (concat "\\(" typescript--name-re "\\)\\(\\s-*).*\\)?")
             '(backward-char)
@@ -1868,7 +1882,7 @@ and searches for the next token to be highlighted."
     ;; continued formal parameter list
     ,(list
       (concat
-       "^\\s-*" typescript--name-re "\\s-*[,)]")
+       "^\\s-*" typescript--name-re "\\s-*[:,)\\n}=]")
       (list typescript--name-re
             '(if (save-excursion (backward-char)
                                  (typescript--inside-param-list-p))
